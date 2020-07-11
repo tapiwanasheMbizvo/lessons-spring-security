@@ -1,22 +1,19 @@
 package com.tmgreyhat.lessons.Controllers;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.tmgreyhat.lessons.Models.Employee;
 import com.tmgreyhat.lessons.Repos.EmployeeRepo;
+import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 @RestController
+@RequestMapping("/employees")
 class EmployeeController {
 
     private final EmployeeRepo repository;
@@ -27,19 +24,35 @@ class EmployeeController {
 
     // Aggregate root
 
-    @GetMapping("/employees")
+   /* @GetMapping
     List<Employee> all() {
         return repository.findAll();
-    }
+    }*/
 
-    @PostMapping("/employees")
+   @GetMapping
+    CollectionModel<EntityModel<Employee>> all (){
+
+       List<EntityModel<Employee>>  employees = repository.findAll()
+               .stream()
+               .map(employee ->  EntityModel.of(employee,
+
+                       linkTo(methodOn(EmployeeController.class).one(employee.getId())).withSelfRel(),
+                       linkTo(methodOn(EmployeeController.class).all()).withRel("employees")
+                       ))
+               .collect(Collectors.toList());
+
+       return  CollectionModel.of(employees,
+               linkTo(methodOn(EmployeeController.class).all()).withSelfRel());
+   }
+
+    @PostMapping
     Employee newEmployee(@RequestBody Employee newEmployee) {
         return repository.save(newEmployee);
     }
 
     // Single item
 
-    @GetMapping("/employees/{id}")
+    @GetMapping(value = "/{id}")
     EntityModel<Employee> one(@PathVariable Long id) {
 
         Employee employee = repository.findById(id) //
@@ -50,7 +63,7 @@ class EmployeeController {
                 linkTo(methodOn(EmployeeController.class).all()).withRel("employees"));
     }
 
-    @PutMapping("/employees/{id}")
+    @PutMapping(value = "{id}")
     Employee replaceEmployee(@RequestBody Employee newEmployee, @PathVariable Long id) {
 
         return repository.findById(id)
@@ -65,7 +78,7 @@ class EmployeeController {
                 });
     }
 
-    @DeleteMapping("/employees/{id}")
+    @DeleteMapping(value = "/{id}")
     void deleteEmployee(@PathVariable Long id) {
         repository.deleteById(id);
     }
